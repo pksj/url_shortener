@@ -1,40 +1,40 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const allRoutes = require('./routes/api-routes.js')
 
 const app = express();
-let counter = 0;
-const urlStart = "qwerty-"
-const port = 3000;
 
-const database = {};
+const port = 3000;
 
 app.use(bodyParser.json())
 
-app.get("/:url", (req, res) => {
+app.use("/", allRoutes);
+
+// app.get("/:url", (req, res) => {
     
     
-    const shortenedURL = req.params.url;
-    if (database[shortenedURL] != undefined) {
+//     const shortenedURL = req.params.url;
+//     if (database[shortenedURL] != undefined) {
         
-        res.json({ 'http-method': "GET", originalURL: database[shortenedURL], shortenedURL: shortenedURL });
-    }
-    else {
-        res.send(`${shortenedURL} is not in database`);
-    }
+//         res.json({ 'http-method': "GET", originalURL: database[shortenedURL], shortenedURL: shortenedURL });
+//     }
+//     else {
+//         res.send(`${shortenedURL} is not in database`);
+//     }
 
-});
+// });
 
-app.post("/", (req, res) => {
+// app.post("/", (req, res) => {
 
     
     
-    const originalURL = req.body.url;
-    const shortenedURL = urlStart + counter;
-    database[shortenedURL] = originalURL;
-    counter++;
-    res.json({ 'http-method': "POST", originalURL: originalURL, shortenedURL: shortenedURL });
+//     const originalURL = req.body.url;
+//     const shortenedURL = urlStart + counter;
+//     database[shortenedURL] = originalURL;
+//     counter++;
+//     res.json({ 'http-method': "POST", originalURL: originalURL, shortenedURL: shortenedURL });
 
-})
+// })
 
 app.listen(port, (err) => {
     if (err) {
