@@ -1,42 +1,125 @@
 const guid = require('../modules/generateGUID');
+const db_con = require("../modules/database_connection");
+const { config } = require('../modules/database_connection');
+const urlStart = "http://localhost:3000/";
+const moment = require('moment')
 
-const urlStart = "http://localhost:3000/"
+db_con.connect(function (err) {
+    if (err) throw err;
+    console.log("Connected!");
+});
 
-const database = {};
+// db_con.query("show columns from url_table", (err, result) => {
+//     if (err)
+//         throw err;
+
+//     console.log(result);
+// });
+
+// db_con.query(`select * from url_table`, (err, result) => {
+//     if (err)
+//         throw err;
+
+//     console.log(result);
+// });
+
 
 const getURL = (req, res) => {
-    console.log(JSON.stringify(req.params));
-    const shortenedURL = req.params.url;
-    if (database[shortenedURL] != undefined) {
-        // res.json({ 'http-method': "GET", originalURL: database[shortenedURL], shortenedURL: urlStart + shortenedURL });
 
-        if (database[shortenedURL].includes("//")) {
-            res.redirect("//" + database[shortenedURL].split("//")[1]);
+    const shortened_url = req.params.url;
+
+    const sql = `select original_url from url_table where shortened_url = "${shortened_url}"`;
+
+    db_con.query(sql, (err, result) => {
+        if (err)
+            throw err
+
+        // console.log('result', result);
+
+        //record not present in database
+        if (Object.keys(result).length === 0) {
+            res.status(404).json("url not in database");
         }
         else {
-            res.redirect("//" + database[shortenedURL]);
+
+            const original_url = result[0]['original_url'];
+
+            if (original_url.includes("//")) {
+                res.redirect("//" + original_url.split("//")[1]);
+            }
+            else {
+                res.redirect("//" + original_url);
+            }
+
         }
 
-
-    }
-    else {
-        res.status(404).send(`${urlStart + shortenedURL} is not in database`);
-    }
+    })
 }
 
 
 const postURL = (req, res) => {
-    const originalURL = req.body.url;
 
-    let shortenedURLEnd = '';
+    const original_url = req.body.url;
 
-    do {
-        shortenedURLEnd = guid(5);
-    } while (database[shortenedURLEnd] != undefined);
+    //chech if url is present in database
+    const sql = `select * from url_table where original_url = "${original_url}"`;
 
-    database[shortenedURLEnd] = originalURL;
-    res.json({ 'http-method': "POST", originalURL: originalURL, shortenedURL: urlStart + shortenedURLEnd });
+    db_con.query(sql,
+        (err, result) => {
+            if (err)
+                throw err;
 
+            const submission_time = moment().format("YYYY-MM-DD HH:mm:ss");
+            console.log(submission_time);
+
+            let shortenedURL = '';
+
+            //record not present in database 
+            if (Object.keys(result).length === 0) {
+
+
+                do {
+
+                    shortenedURL = guid(5);
+
+                    const sql = `select * from url_table where shortened_url = "${shortenedURL}"`;
+
+                    db_con.query(sql, (err, result) => {
+                        if (err) throw err;
+
+                        if (Object.keys(result).length != 0) {
+                            shortenedURL = '';
+                        }
+
+                    })
+
+                } while (shortenedURL === '');
+
+
+                const sql = `insert into url_table (original_url, shortened_url, submission_time) values ("${original_url}", "${shortenedURL}", "${submission_time}")`
+                // console.log(sql);
+                db_con.query(sql, (err, result) => {
+                    if (err) throw err;
+
+                    console.log("Added successfully\n", result);
+                })
+
+            }
+
+            //record present in database.........just updating time 
+            else {
+
+                const sql = `update url_table set submission_time = "${submission_time}" where original_url = "${original_url}"`;
+
+                db_con.query(sql, (err, result) => {
+                    if (err) throw err;
+
+                    console.log("Time updated successfully\n", result);
+                })
+            }
+        });
+
+    res.status(201).json({ 'http-method': "POST" });
 }
 
 exports.getURL = getURL;
