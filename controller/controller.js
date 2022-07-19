@@ -24,93 +24,107 @@ const db_query = util.promisify(db_con.query).bind(db_con);
 
 
 
-cron.schedule('* */30 * * * *',
-    () => {
+// cron.schedule('* */30 * * * *',
+//     () => {
 
-        const curr_time = moment().subtract(1, 's').format("YYYY-MM-DD HH:mm:ss");
-        console.log(curr_time);
-        const sql = `delete from url_table where "${curr_time}" > submission_time`;
-        // console.log(sql);
-        db_query(sql, (err, result) => {
-            if (err) throw err
+//         const curr_time = moment().subtract(1, 's').format("YYYY-MM-DD HH:mm:ss");
+//         console.log(curr_time);
+//         const sql = `delete from url_table where "${curr_time}" > submission_time`;
+//         // console.log(sql);
+//         db_query(sql, (err, result) => {
+//             if (err) throw err
 
-            console.log(result);
-        })
+//             console.log(result);
+//         })
 
-    }
-)
+//     }
+// )
 
-const checkAndRedirectUrl =  async(sql, res) => {
+const checkAndRedirectUrl = async (sql, res) => {
 
-     db_query(sql, (err, result) => {
+    //  db_query(sql, (err, result) => {
 
-        if (err)
-            throw err
+    //     if (err)
+    //         throw err
 
 
-        //record not present in database
-        if (Object.keys(result).length === 0) {
-            res.status(404).json("url not in database");
-        }
-        else {
+    //     //record not present in database
+    //     if (Object.keys(result).length === 0) {
+    //         res.status(404).json("url not in database");
+    //     }
+    //     
+    // });
 
-            const original_url = result[0]['original_url'];
+    await db_query(sql).
+        then(result => {
 
-            if (original_url.includes("//")) {
-                res.redirect("//" + original_url.split("//")[1]);
+            if (Object.keys(result).length === 0) {
+                res.status(404).json("url not in database");
             }
             else {
-                res.redirect("//" + original_url);
-            }
 
-        }
-    });
+                const original_url = result[0]['original_url'];
+
+                if (original_url.includes("//")) {
+                    res.redirect("//" + original_url.split("//")[1]);
+                }
+                else {
+                    res.redirect("//" + original_url);
+                }
+
+            }
+        }).
+        catch(error => { throw error });
 }
 
-const inserIntoDB = async (sql) => {
+const insertIntoDB = async (sql) => {
 
-    // console.log(sql);
-     db_query(sql, (err, result) => {
-        if (err) throw err;
 
-        console.log("Added successfully\n", result);
-    });
+    // db_query(sql, (err, result) => {
+    //     if (err) throw err;
+
+    //     console.log("Added successfully\n", result);
+    // });
+
+    await db_query(sql).
+        then(resut => console.log(resut)).
+        catch(error => console.log(error));
 
 }
 
 const updateRecord = async (sql) => {
 
-     db_query(sql, (err, result) => {
-        if (err) throw err;
+    await db_query(sql).
+        then(result => console.log("Time updated successfully\n", result)).
+        catch(error => { throw error });
 
-        console.log("Time updated successfully\n", result);
-    });
+
 }
 
 const checkIfShortUrlTaken = async (sql) => {
 
-    db_query(sql, (err, result) => {
-        if (err) throw err;
+    await db_query(sql).
+        then(result => {
 
-        if (Object.keys(result).length != 0) {
-            return false;
-        }
-        else {
-            return true;
-        }
+            if (Object.keys(result).length == 0) {
+                console.log('adwdwdadawd');
+                return false;
+            }
+            else {
+                return true;
+            }
+        }).
+        catch(error => console.log(error));
 
-    })
 }
 
-const addUrlIntoDB = async  (original_url) => {
+const addUrlIntoDB = async (original_url) => {
 
     //chech if url is present in database
     const sql = `select * from url_table where original_url = "${original_url}"`;
 
-    await db_query(sql,
-        async (err, result) => {
-            if (err)
-                throw err;
+    await db_query(sql).
+        then(async (result) => {
 
             const submission_time = moment().format("YYYY-MM-DD HH:mm:ss");
 
@@ -131,10 +145,9 @@ const addUrlIntoDB = async  (original_url) => {
 
                 } while (shortenedURL === '');
 
-
                 const sql = `insert into url_table (original_url, shortened_url, submission_time) values ("${original_url}", "${shortenedURL}", "${submission_time}")`
 
-                await inserIntoDB(sql);
+                await insertIntoDB(sql);
             }
             //record present in database.........just updating time 
             else {
@@ -143,7 +156,8 @@ const addUrlIntoDB = async  (original_url) => {
 
                 await updateRecord(sql);
             }
-        });
+        }).
+        catch(error => { throw error });
 }
 
 const getURL = async (req, res) => {
@@ -152,7 +166,7 @@ const getURL = async (req, res) => {
 
     const sql = `select original_url from url_table where shortened_url = "${shortened_url}"`;
 
-     checkAndRedirectUrl(sql, res);
+    await checkAndRedirectUrl(sql, res);
 
 }
 
@@ -160,8 +174,9 @@ const postURL = async (req, res) => {
 
     const original_url = req.body.url;
 
-    // for (i = 0; i < 100000;i++)
-         addUrlIntoDB(original_url);
+    for (i = 0; i < 1000;i++)
+    await addUrlIntoDB(original_url);
+
 
     res.status(201).json({ 'http-method': "POST" });
 }
