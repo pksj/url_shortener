@@ -24,98 +24,88 @@ const db_query = util.promisify(db_con.query).bind(db_con);
 
 
 
-// cron.schedule('* */30 * * * *',
-//     () => {
+cron.schedule('* */60 * * * *',
+   async () => {
 
-//         const curr_time = moment().subtract(1, 's').format("YYYY-MM-DD HH:mm:ss");
-//         console.log(curr_time);
-//         const sql = `delete from url_table where "${curr_time}" > submission_time`;
-//         // console.log(sql);
-//         db_query(sql, (err, result) => {
-//             if (err) throw err
+        try {
+            const curr_time = moment().subtract(1, 's').format("YYYY-MM-DD HH:mm:ss");
+            console.log(curr_time);
+            const sql = `delete from url_table where "${curr_time}" > submission_time`;
+            // console.log(sql);
+            let result = await db_query(sql);
+            console.log(result);
+        } catch (error) {
+            console.log(error);
+        }
+        
+    })
 
-//             console.log(result);
-//         })
 
-//     }
-// )
 
 const checkAndRedirectUrl = async (sql, res) => {
 
-    //  db_query(sql, (err, result) => {
+    try {
 
-    //     if (err)
-    //         throw err
+        let result = await db_query(sql)
 
+        if (Object.keys(result).length === 0) {
+            res.status(404).json("url not in database");
+        }
+        else {
+            const original_url = result[0]['original_url'];
+        
 
-    //     //record not present in database
-    //     if (Object.keys(result).length === 0) {
-    //         res.status(404).json("url not in database");
-    //     }
-    //     
-    // });
-
-    await db_query(sql).
-        then(result => {
-
-            if (Object.keys(result).length === 0) {
-                res.status(404).json("url not in database");
+            if (original_url.includes("//")) {
+                res.redirect("//" + original_url.split("//")[1]);
             }
             else {
-
-                const original_url = result[0]['original_url'];
-
-                if (original_url.includes("//")) {
-                    res.redirect("//" + original_url.split("//")[1]);
-                }
-                else {
-                    res.redirect("//" + original_url);
-                }
-
+                res.redirect("//" + original_url);
             }
-        }).
-        catch(error => { throw error });
+        }
+
+    }
+    catch (error) {
+        console.log(error)
+    }
 }
 
 const insertIntoDB = async (sql) => {
 
-
-    // db_query(sql, (err, result) => {
-    //     if (err) throw err;
-
-    //     console.log("Added successfully\n", result);
-    // });
-
-    await db_query(sql).
-        then(resut => console.log(resut)).
-        catch(error => console.log(error));
+    try {
+        let result = await db_query(sql);
+        console.log(result);
+    } catch (error) {
+        console.log(error)
+    }
 
 }
 
 const updateRecord = async (sql) => {
 
-    await db_query(sql).
-        then(result => console.log("Time updated successfully\n", result)).
-        catch(error => { throw error });
-
+    try {
+        let result = await db_query(sql);
+        console.log("Time updated successfully\n", result)
+    } catch (error) {
+        console.log(error)
+    }
 
 }
 
 const checkIfShortUrlTaken = async (sql) => {
 
-    await db_query(sql).
-        then(result => {
+    try {
+        const result = await db_query(sql)
 
-            if (Object.keys(result).length == 0) {
-                console.log('adwdwdadawd');
-                return false;
-            }
-            else {
-                return true;
-            }
-        }).
-        catch(error => console.log(error));
-
+        if (Object.keys(result).length == 0) {
+            return false;
+        }
+        else {
+            return true;
+        }
+    }
+    catch (error) {
+        console.log(error);
+    }
 }
 
 const addUrlIntoDB = async (original_url) => {
@@ -123,41 +113,43 @@ const addUrlIntoDB = async (original_url) => {
     //chech if url is present in database
     const sql = `select * from url_table where original_url = "${original_url}"`;
 
-    await db_query(sql).
-        then(async (result) => {
+    try {
+        let result = await db_query(sql)
 
-            const submission_time = moment().format("YYYY-MM-DD HH:mm:ss");
+        const submission_time = moment().format("YYYY-MM-DD HH:mm:ss");
 
-            let shortenedURL = '';
+        let shortenedURL = '';
 
-            //record not present in database 
-            if (Object.keys(result).length === 0) {
+        //record not present in database 
+        if (Object.keys(result).length === 0) {
 
-                do {
+            do {
 
-                    shortenedURL = guid(5);
+                shortenedURL = guid(5);
 
-                    const sql = `select * from url_table where shortened_url = "${shortenedURL}"`;
+                const sql = `select * from url_table where shortened_url = "${shortenedURL}"`;
 
-                    if (checkIfShortUrlTaken(sql) == true) {
-                        shortenedURL = '';
-                    }
+                if (checkIfShortUrlTaken(sql) == true) {
+                    shortenedURL = '';
+                }
 
-                } while (shortenedURL === '');
+            } while (shortenedURL === '');
 
-                const sql = `insert into url_table (original_url, shortened_url, submission_time) values ("${original_url}", "${shortenedURL}", "${submission_time}")`
+            const sql = `insert into url_table (original_url, shortened_url, submission_time) values ("${original_url}", "${shortenedURL}", "${submission_time}")`
 
-                await insertIntoDB(sql);
-            }
-            //record present in database.........just updating time 
-            else {
+            await insertIntoDB(sql);
+        }
+        //record present in database.........just updating time 
+        else {
 
-                const sql = `update url_table set submission_time = "${submission_time}" where original_url = "${original_url}"`;
+            const sql = `update url_table set submission_time = "${submission_time}" where original_url = "${original_url}"`;
 
-                await updateRecord(sql);
-            }
-        }).
-        catch(error => { throw error });
+            await updateRecord(sql);
+        }
+    }
+    catch (error) {
+        console.log(error)
+    }
 }
 
 const getURL = async (req, res) => {
@@ -176,7 +168,6 @@ const postURL = async (req, res) => {
 
     for (i = 0; i < 1000;i++)
     await addUrlIntoDB(original_url);
-
 
     res.status(201).json({ 'http-method': "POST" });
 }
